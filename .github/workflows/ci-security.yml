@@ -51,14 +51,26 @@ jobs:
           pip-audit -r requirements.txt -f json -o pip-audit.json || true
           pip-audit -r requirements.txt -f sarif -o pip-audit.sarif || true
 
-      # ✅ FIX: создать пустой SARIF, если pip-audit его не создал
+      # ✅ Создать SARIF, если pip-audit его не создал
       - name: Ensure pip-audit SARIF exists
         run: |
           if [ ! -f pip-audit.sarif ]; then
-            echo '{"version": "2.1.0", "runs": []}' > pip-audit.sarif
+            echo '{"version":"2.1.0","runs":[{"results":[]}]}'> pip-audit.sarif
           fi
 
+      # ✅ Проверить, есть ли результаты, иначе — не загружать SARIF
+      - name: Check if pip-audit SARIF has results
+        id: sarif_check
+        run: |
+          if grep -q '"results": \[\]' pip-audit.sarif; then
+            echo "empty=true" >> $GITHUB_OUTPUT
+          else
+            echo "empty=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ✅ Загружать SARIF только если он НЕ пустой
       - name: Upload pip-audit SARIF to Code Scanning
+        if: steps.sarif_check.outputs.empty == 'false'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: pip-audit.sarif
