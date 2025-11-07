@@ -1,0 +1,7 @@
+rules:
+- id: use-of-eval
+patterns:
+- pattern: eval(...)
+message: Avoid eval() — security risk
+severity: ERROR
+languages: [python]
