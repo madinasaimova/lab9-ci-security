@@ -31,9 +31,7 @@ jobs:
       - name: Semgrep scan
         run: |
           semgrep --version
-          # базовые наборы правил для Python
           semgrep scan --config p/python --config p/security-audit --json -o semgrep.json || true
-          # выгрузка в SARIF для Code scanning
           semgrep scan --config p/python --config p/security-audit --sarif -o semgrep.sarif || true
 
       - name: Upload Semgrep SARIF to Code Scanning
@@ -52,6 +50,13 @@ jobs:
         run: |
           pip-audit -r requirements.txt -f json -o pip-audit.json || true
           pip-audit -r requirements.txt -f sarif -o pip-audit.sarif || true
+
+      # ✅ FIX: создать пустой SARIF, если pip-audit его не создал
+      - name: Ensure pip-audit SARIF exists
+        run: |
+          if [ ! -f pip-audit.sarif ]; then
+            echo '{"version": "2.1.0", "runs": []}' > pip-audit.sarif
+          fi
 
       - name: Upload pip-audit SARIF to Code Scanning
         uses: github/codeql-action/upload-sarif@v3
