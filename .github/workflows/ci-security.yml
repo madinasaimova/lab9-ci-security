@@ -1,0 +1,55 @@
+name: CI Security (Semgrep + pip-audit)
+jobs:
+security:
+runs-on: ubuntu-latest
+
+steps:
+- name: Checkout
+uses: actions/checkout@v4
+
+- name: Set up Python
+uses: actions/setup-python@v5
+with:
+python-version: '3.12'
+
+- name: Install tools
+run: |
+python -m pip install --upgrade pip
+pip install pip-audit semgrep
+
+# --- Semgrep (SAST #1) ---
+- name: Semgrep scan
+run: |
+semgrep --version
+# базовые наборы правил для Python
+semgrep scan --config p/python --config p/security-audit --json -o semgrep.json || true
+# выгрузка в SARIF для Code scanning
+semgrep scan --config p/python --config p/security-audit --sarif -o semgrep.sarif || true
+
+- name: Upload Semgrep SARIF to Code Scanning
+uses: github/codeql-action/upload-sarif@v3
+with:
+sarif_file: semgrep.sarif
+
+- name: Upload Semgrep JSON artifact
+uses: actions/upload-artifact@v4
+with:
+name: semgrep-json
+path: semgrep.json
+
+# --- pip-audit (SCA) ---
+- name: pip-audit (SCA)
+run: |
+pip-audit -r requirements.txt -f json -o pip-audit.json || true
+pip-audit -r requirements.txt -f sarif -o pip-audit.sarif || true
+
+- name: Upload pip-audit SARIF to Code Scanning
+uses: github/codeql-action/upload-sarif@v3
+with:
+sarif_file: pip-audit.sarif
+
+- name: Upload pip-audit JSON artifact
+uses: actions/upload-artifact@v4
+with:
+name: pip-audit-json
+path: pip-audit.json
