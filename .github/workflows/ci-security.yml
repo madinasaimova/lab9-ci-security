@@ -5,6 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   security:
@@ -41,13 +42,12 @@ jobs:
           path: semgrep.json
 
       # --- PIP-AUDIT ---
-      - name: Run pip-audit and generate SARIF
+      - name: Run pip-audit and convert to valid SARIF
         shell: bash
         run: |
           echo "Running pip-audit..."
           pip-audit -r requirements.txt -f json -o pip-audit.json || echo "pip-audit finished"
 
-          # Проверяем, что JSON не пустой
           if [ ! -s pip-audit.json ]; then
             echo "No vulnerabilities found — creating empty SARIF"
             echo '{
@@ -59,21 +59,26 @@ jobs:
               }]
             }' > pip-audit.sarif
           else
-            echo "Wrapping pip-audit JSON output into SARIF format"
-            # Проверяем, является ли JSON массивом, если нет — оборачиваем в []
-            CONTENT=$(cat pip-audit.json)
-            if [[ $CONTENT != \[* ]]; then
-              CONTENT="[$CONTENT]"
-            fi
-
-            echo '{
+            echo "Converting pip-audit JSON to SARIF..."
+            jq '{
               "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
               "version": "2.1.0",
               "runs": [{
                 "tool": { "driver": { "name": "pip-audit" } },
-                "results": '"$CONTENT"'
+                "results": [
+                  .[] | .vulns[]? | {
+                    "ruleId": .id,
+                    "level": "error",
+                    "message": { "text": ("Package " + .package.name + " has vulnerability " + .id + ": " + .description) },
+                    "locations": [{
+                      "physicalLocation": {
+                        "artifactLocation": { "uri": "requirements.txt" }
+                      }
+                    }]
+                  }
+                ]
               }]
-            }' > pip-audit.sarif
+            }' pip-audit.json > pip-audit.sarif
           fi
 
       - name: Upload pip-audit SARIF to GitHub Security tab
