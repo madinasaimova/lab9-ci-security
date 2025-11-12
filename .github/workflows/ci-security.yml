@@ -30,7 +30,7 @@ jobs:
           pip install -r requirements.txt || echo "No requirements.txt found"
           pip install semgrep pip-audit jq
 
-      # --- SEMGREP ---
+           # --- SEMGREP ---
       - name: Run Semgrep
         run: |
           semgrep --config=p/ci --json > semgrep.json || echo "Semgrep finished with non-zero exit"
@@ -42,7 +42,7 @@ jobs:
           path: semgrep.json
 
       # --- PIP-AUDIT ---
-           - name: Run pip-audit and convert to valid SARIF
+      - name: Run pip-audit and convert to valid SARIF
         shell: bash
         run: |
           echo "Running pip-audit..."
