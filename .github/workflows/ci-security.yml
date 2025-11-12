@@ -49,7 +49,7 @@ jobs:
           # Проверяем, что файл реально создан
           if [ ! -s pip-audit.json ]; then
             echo "No vulnerabilities found — creating empty SARIF"
-            cat <<EOF > pip-audit.sarif
+            cat <<'EOF' > pip-audit.sarif
 {
   "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
   "version": "2.1.0",
@@ -61,7 +61,7 @@ jobs:
 EOF
           else
             echo "Converting JSON to SARIF"
-            cat <<EOF > pip-audit.sarif
+            cat <<'EOF' > pip-audit.sarif
 {
   "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
   "version": "2.1.0",
