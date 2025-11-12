@@ -42,35 +42,32 @@ jobs:
 
       # --- PIP-AUDIT ---
       - name: Run pip-audit and ensure SARIF file exists
+        shell: bash
         run: |
           echo "Running pip-audit..."
           pip-audit -r requirements.txt -f json -o pip-audit.json || echo "pip-audit finished"
 
-          # Проверяем, что файл реально создан
+          # Проверяем, что JSON есть и не пустой
           if [ ! -s pip-audit.json ]; then
             echo "No vulnerabilities found — creating empty SARIF"
-            cat <<'EOF' > pip-audit.sarif
-{
-  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
-  "version": "2.1.0",
-  "runs": [{
-    "tool": { "driver": { "name": "pip-audit" } },
-    "results": []
-  }]
-}
-EOF
+            echo '{
+              "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+              "version": "2.1.0",
+              "runs": [{
+                "tool": { "driver": { "name": "pip-audit" } },
+                "results": []
+              }]
+            }' > pip-audit.sarif
           else
             echo "Converting JSON to SARIF"
-            cat <<'EOF' > pip-audit.sarif
-{
-  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
-  "version": "2.1.0",
-  "runs": [{
-    "tool": { "driver": { "name": "pip-audit" } },
-    "results": $(cat pip-audit.json)
-  }]
-}
-EOF
+            echo '{
+              "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+              "version": "2.1.0",
+              "runs": [{
+                "tool": { "driver": { "name": "pip-audit" } },
+                "results":' > pip-audit.sarif
+            cat pip-audit.json >> pip-audit.sarif
+            echo '}]}' >> pip-audit.sarif
           fi
 
       - name: Upload pip-audit SARIF to GitHub Security tab
