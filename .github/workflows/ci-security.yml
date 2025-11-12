@@ -42,7 +42,7 @@ jobs:
           path: semgrep.json
 
       # --- PIP-AUDIT ---
-      - name: Run pip-audit and convert to valid SARIF
+           - name: Run pip-audit and convert to valid SARIF
         shell: bash
         run: |
           echo "Running pip-audit..."
@@ -65,18 +65,18 @@ jobs:
               "version": "2.1.0",
               "runs": [{
                 "tool": { "driver": { "name": "pip-audit" } },
-                "results": [
-                  .[] | .vulns[]? | {
+                "results": (
+                  [ .[] | select(.vulns != null) | .vulns[] | {
                     "ruleId": .id,
                     "level": "error",
-                    "message": { "text": ("Package " + .package.name + " has vulnerability " + .id + ": " + .description) },
+                    "message": { "text": ("Package " + (.package.name // "unknown") + " has vulnerability " + .id + ": " + (.description // "")) },
                     "locations": [{
                       "physicalLocation": {
                         "artifactLocation": { "uri": "requirements.txt" }
                       }
                     }]
-                  }
-                ]
+                  }] // []
+                )
               }]
             }' pip-audit.json > pip-audit.sarif
           fi
