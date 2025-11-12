@@ -9,6 +9,11 @@ on:
 jobs:
   security:
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,9 +29,10 @@ jobs:
           pip install -r requirements.txt || echo "No requirements.txt found"
           pip install semgrep pip-audit jq
 
+      # --- SEMGREP ---
       - name: Run Semgrep
         run: |
-          semgrep --config=p/ci --json > semgrep.json || true
+          semgrep --config=p/ci --json > semgrep.json || echo "Semgrep finished with non-zero exit"
 
       - name: Upload Semgrep results
         uses: actions/upload-artifact@v4
@@ -34,19 +40,23 @@ jobs:
           name: semgrep-json
           path: semgrep.json
 
+      # --- PIP-AUDIT ---
       - name: Run pip-audit and create valid SARIF
         run: |
           # Пытаемся создать JSON-отчёт
-          pip-audit -f json -o pip-audit.json || true
+          pip-audit -f json -o pip-audit.json || echo "pip-audit completed"
 
-          # Если pip-audit.json пустой или содержит текст, создаём пустой JSON
-          if ! jq empty pip-audit.json 2>/dev/null; then
+          # Если файла нет или он невалидный, создаём пустой
+          if [ ! -s pip-audit.json ]; then
+            echo "[]" > pip-audit.json
+          elif ! jq empty pip-audit.json 2>/dev/null; then
             echo "[]" > pip-audit.json
           fi
 
-          # Преобразуем в корректный SARIF
+          # Формируем корректный SARIF
           jq -n --argjson runs "[{ \"tool\": {\"driver\": {\"name\": \"pip-audit\"}}, \"results\": ($(cat pip-audit.json)) }]" \
-            '{ "$schema": "https://json.schemastore.org/sarif-2.1.0.json", "version": "2.1.0", "runs": $runs }' > pip-audit.sarif
+            '{ "$schema": "https://json.schemastore.org/sarif-2.1.0.json", "version": "2.1.0", "runs": $runs }' \
+            > pip-audit.sarif
 
       - name: Upload pip-audit SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
